@@ -18,6 +18,10 @@ int main(void) {
     /* arg1 to int, arg2 to int*/
     n1 = atoi(arg1);
     n2 = atoi(arg2);
+
+    /* Get num1, num2 from adder.html */
+    sscanf(buf, "num1=%d", &n1);
+    sscanf(p+1, "num2=%d", &n2);
   }
 
   /* Make the response body */
