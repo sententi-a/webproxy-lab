@@ -1,13 +1,63 @@
 <html>
-<head><title>test</title></head>
-<body> 
-<img align="middle" src="godzilla.gif">
-Dave O'Hallaron
-<div style="margin-top: 30px;">
-    <video width="320" muted autoplay loop>
-        <source src="bongo_cat.mp4" type="video/mp4">
-    </video>
-    Cute Bongo Cat
-</div>
+
+<head>
+    <title>test</title>
+</head>
+<style>
+    .wrapper {
+        margin-top: 30px;
+        display: inline-block;
+        text-align: center;
+        font-size: 30px;
+    }
+
+    .txtinput {
+        border: solid 1px gray;
+        border-radius: 20px;
+        font-size: 30px
+    }
+
+    .inputlabel {
+        font-size: 20px;
+    }
+
+    #btn {
+        width: auto;
+        padding: 20px 10px;
+        margin-top: 20px;
+        border-radius: 20px;
+        color: white;
+        background-color: blue;
+        font-size: 30px;
+        border: none;
+    }
+</style>
+
+<body>
+    <img align="middle" src="godzilla.gif">
+    Dave O'Hallaron
+    <div style="margin-top: 30px;">
+        <video width="320" muted autoplay loop>
+            <source src="bongo_cat.mp4" type="video/mp4">
+        </video>
+        Cute Bongo Cat
+    </div>
+    <form action="/cgi-bin/adder" method="GET">
+        <div class="wrapper">
+            <label class="inputlabel" for="num1">1st number</label>
+            <div>
+                <input class="txtinput" type="text" name="num1" placeholder="Enter num1">
+            </div>
+            <label class="inputlabel" for="num2">2nd number</label>
+            <div>
+                <input class="txtinput" type="text" name="num2" placeholder="Enter num2">
+            </div>
+
+            <div>
+                <button id="btn" type="submit" value="Submit">ADD</button>
+            </div>
+        </div>
+    </form>
 </body>
+
 </html>
