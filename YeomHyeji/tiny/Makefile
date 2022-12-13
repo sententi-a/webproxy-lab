@@ -16,7 +16,10 @@ csapp.o: csapp.c
 cgi:
 	(cd cgi-bin; make)
 
+# client: tiny_client.c csapp.o
+# 	$(CC) $(CFLAGS) -o tinyc tiny_client.c csapp.o $(LIB)
+
 clean:
-	rm -f *.o tiny *~
+	rm -f *.o tiny *~ tinyc
 	(cd cgi-bin; make clean)
 
