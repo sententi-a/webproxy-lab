@@ -10,6 +10,7 @@
 
 void doit(int fd);
 void read_requesthdrs(rio_t *rp);
+void serve_head_request(int fd, char *filename, int filesize, int is_static);
 int parse_uri(char *uri, char *filename, char *cgiargs);
 void serve_static(int fd, char *filename, int filesize);
 void get_filetype(char *filename, char *filetype);
@@ -59,12 +60,13 @@ void doit(int fd)
   /* Read request line */
   Rio_readinitb(&rio, fd); //connect rio to fd
   Rio_readlineb(&rio, buf, MAXLINE); //read request line from client and copy it to buf (EX) GET /cgi-bin/adder?1300&4000 HTTP/1.0 ~~~~
+  
   printf("Request headers: \n");
   printf("%s", buf); 
   sscanf(buf, "%s %s %s", method, uri, version); // allocates string in buf respectively to method, uri, version
-
-  /* If http request is not GET, raise 501 error */
-  if (strcasecmp(method, "GET")) {
+  
+  /* If http request is not GET or HEAD, raise 501 error */
+  if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD")) {
     printf("501");
     clienterror(fd, method, "501", "Not implemented", "Tiny does not implement this method");
     return;
@@ -78,6 +80,12 @@ void doit(int fd)
   if (stat(filename, &sbuf) < 0){ //stat(filename or path, buf struct that saves file status and info); Returns -1 on error
     printf("404");
     clienterror(fd, filename, "404", "Not found", "Tiny couldn't find this file");
+    return;
+  }
+
+  /* if method is HEAD, Serve HEAD method */
+  if(!strcasecmp(method, "HEAD")){
+    serve_head_request(fd, filename, sbuf.st_size, is_static);
     return;
   }
 
@@ -119,6 +127,28 @@ void read_requesthdrs(rio_t *rp)
     printf("%s", buf);
   }
 
+  return;
+}
+
+/* 
+ * Serve HEAD request
+ * Just send response header to client 
+ */
+void serve_head_request(int fd, char *filename, int filesize, int is_static)
+{
+  char buf[MAXLINE], filetype[MAXLINE];
+
+  get_filetype(filename, filetype);
+
+  /*****************static content***************/
+  sprintf(buf, "HTTP/1.1 200 OK\r\n");
+  sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+  sprintf(buf, "%sConnection: close\r\n", buf);
+  sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
+  sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
+  Rio_writen(fd, buf, strlen(buf));
+
+  /*******ToDO : get dynamic content length*****/
   return;
 }
 
@@ -171,7 +201,7 @@ void serve_static(int fd, char *filename, int filesize)
 
   /* Store string(going to be response line & response headers) in buffer buf */
   get_filetype(filename, filetype);
-  sprintf(buf, "HTTP/1.0 200 OK\r\n");
+  sprintf(buf, "HTTP/1.1 200 OK\r\n");
   sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
   sprintf(buf, "%sConnection: close\r\n", buf);
   sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
@@ -192,11 +222,15 @@ void serve_static(int fd, char *filename, int filesize)
     // PROT_EXEC:executable, PROT_READ:readable, NONE:inaccessible, WRITE:writable
   // flags : 
     // MAP_FIXED:only use designated address, MAP_SHARED:share object with every process, MAP_PRIVATE: doesn't share area with other process
-  srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); 
+  //srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); 
+  /* VM Using malloc, Rio_readn, Rio_writen */
+  srcp = (char *)malloc(sizeof(char)*filesize);
+  Rio_readn(srcfd, srcp, filesize);
   Close(srcfd);
   /* send file to client */
   Rio_writen(fd, srcp, filesize); // sends file contents in srcp to client through connfd
-  Munmap(srcp, filesize);
+  //Munmap(srcp, filesize);
+  free(srcp);
 }
 
 /*
@@ -209,7 +243,7 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
 {
   char buf[MAXLINE], *emptylist[] = {NULL};
   /* Send HTTP Response line and header to client */
-  sprintf(buf, "HTTP/1.0 200 OK\r\n");
+  sprintf(buf, "HTTP/1.1 200 OK\r\n");
   Rio_writen(fd, buf, strlen(buf));
   sprintf(buf, "Server: Tiny Web Server\r\n");
   Rio_writen(fd, buf, strlen(buf));
@@ -239,6 +273,8 @@ void get_filetype(char *filename, char *filetype)
     strcpy(filetype, "image/png");
   else if (strstr(filename, ".jpg"))
     strcpy(filetype, "image/jpeg");
+  else if (strstr(filename, ".mp4"))
+    strcpy(filetype, "video/mp4");
   else 
     strcpy(filetype, "text/plain");
 }
@@ -258,7 +294,7 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
   sprintf(body, "%s<hr><em>The Tiny Web Server</em>\r\n", body);
 
   /* Send the HTTP response line&headers to client */
-  sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
+  sprintf(buf, "HTTP/1.1 %s %s\r\n", errnum, shortmsg);
   Rio_writen(fd, buf, strlen(buf));
   sprintf(buf, "Content-type: text/html\r\n");
   Rio_writen(fd, buf, strlen(buf));

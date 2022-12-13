@@ -23,3 +23,4 @@ clean:
 	rm -f *.o tiny *~ tinyc
 	(cd cgi-bin; make clean)
 
+re: clean all
