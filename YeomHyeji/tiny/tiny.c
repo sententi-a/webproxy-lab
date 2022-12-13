@@ -56,9 +56,9 @@ void doit(int fd)
   char filename[MAXLINE], cgiargs[MAXLINE]; 
   rio_t rio;
 
-  /* Read request line and headers */
+  /* Read request line */
   Rio_readinitb(&rio, fd); //connect rio to fd
-  Rio_readlineb(&rio, buf, MAXLINE); //read request line and headers (EX) GET /cgi-bin/adder?1300&4000 HTTP/1.0 ~~~~
+  Rio_readlineb(&rio, buf, MAXLINE); //read request line from client and copy it to buf (EX) GET /cgi-bin/adder?1300&4000 HTTP/1.0 ~~~~
   printf("Request headers: \n");
   printf("%s", buf); 
   sscanf(buf, "%s %s %s", method, uri, version); // allocates string in buf respectively to method, uri, version
@@ -69,10 +69,11 @@ void doit(int fd)
     clienterror(fd, method, "501", "Not implemented", "Tiny does not implement this method");
     return;
   }
+  /* Read request headers */
   read_requesthdrs(&rio);
 
   /* Parse URI from GET request */
-  is_static = parse_uri(uri, filename, cgiargs); 
+  is_static = parse_uri(uri, filename, cgiargs);
 
   if (stat(filename, &sbuf) < 0){ //stat(filename or path, buf struct that saves file status and info); Returns -1 on error
     printf("404");
@@ -110,9 +111,9 @@ void read_requesthdrs(rio_t *rp)
 {
   char buf[MAXLINE];
 
-  Rio_readlineb(rp, buf, MAXLINE); //
+  Rio_readlineb(rp, buf, MAXLINE); // ignore request line
 
-  /* read string until it meets "\r\n" */
+  /* read request headers until it meets "\r\n(empty line)" */
   while(strcmp(buf, "\r\n")){
     Rio_readlineb(rp, buf, MAXLINE);
     printf("%s", buf);
@@ -168,8 +169,7 @@ void serve_static(int fd, char *filename, int filesize)
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
 
-  /*****Send response headers to client*****/
-  // info of content that server sends to client
+  /* Store string(going to be response line & response headers) in buffer buf */
   get_filetype(filename, filetype);
   sprintf(buf, "HTTP/1.0 200 OK\r\n");
   sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
@@ -177,17 +177,21 @@ void serve_static(int fd, char *filename, int filesize)
   sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
   sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
 
+  /*****Send response headers to client*****/
+  // info of content that server sends to client
   Rio_writen(fd, buf, strlen(buf));
+  /* Prints Response header on server terminal */
   printf("Response headers: \n");
   printf("%s", buf);
 
   /*****Send response body to client*****/
+  /* Open(filename or path, flags, mode) : Returns file descriptor */
   srcfd = Open(filename, O_RDONLY, 0); // O_RDONLY : open file read-only
   /* mapping request file to vm area */
   // PROT_ : sets memory security mode 
     // PROT_EXEC:executable, PROT_READ:readable, NONE:inaccessible, WRITE:writable
   // flags : 
-    // MAP_FIXED:only use designated address, MAP_SHARED:share object with every process, MAP_PRIVATE:X share area with other process
+    // MAP_FIXED:only use designated address, MAP_SHARED:share object with every process, MAP_PRIVATE: doesn't share area with other process
   srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); 
   Close(srcfd);
   /* send file to client */
@@ -204,7 +208,7 @@ void serve_static(int fd, char *filename, int filesize)
 void serve_dynamic(int fd, char *filename, char *cgiargs)
 {
   char buf[MAXLINE], *emptylist[] = {NULL};
-  /* Return first part of HTTP Response */
+  /* Send HTTP Response line and header to client */
   sprintf(buf, "HTTP/1.0 200 OK\r\n");
   Rio_writen(fd, buf, strlen(buf));
   sprintf(buf, "Server: Tiny Web Server\r\n");
@@ -253,12 +257,13 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
   sprintf(body, "%s<p>%s: %s\r\n", body, longmsg, cause);
   sprintf(body, "%s<hr><em>The Tiny Web Server</em>\r\n", body);
 
-  /* Print the HTTP response */
+  /* Send the HTTP response line&headers to client */
   sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
   Rio_writen(fd, buf, strlen(buf));
   sprintf(buf, "Content-type: text/html\r\n");
   Rio_writen(fd, buf, strlen(buf));
-  sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
+  sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body)); // "\r\n(empty line)" terminates response headers
   Rio_writen(fd, buf, strlen(buf));
+  /* Send the HTTP response body */
   Rio_writen(fd, body, strlen(body));
 }
