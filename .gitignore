@@ -2,6 +2,7 @@
 tiny/tiny
 tiny/cgi-bin/adder
 proxy
+.vscode
 
 # MacOS
 .DS_Store
