@@ -1,9 +1,4 @@
-/*
- * csapp.h - prototypes and definitions for the CS:APP3e book
- */
-/* $begin csapp.h */
-#ifndef __CSAPP_H__
-#define __CSAPP_H__
+#pragma once
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -193,7 +188,3 @@ int open_listenfd(char *port);
 /* Wrappers for reentrant protocol-independent client/server helpers */
 int Open_clientfd(char *hostname, char *port);
 int Open_listenfd(char *port);
-
-
-#endif /* __CSAPP_H__ */
-/* $end csapp.h */
